@@ -90,4 +90,5 @@ def prediction(id_client):
     return jsonify(res)
 
 if __name__ == "__main__":
-    app.run(port=5001) # debug=True
+    port = int(os.environ.get('PORT', 5001))
+    app.run(port=port) # debug=True port=5001
