@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS, cross_origin
 import pickle
 import pandas as pd
 from sklearn.metrics import fbeta_score, make_scorer
@@ -51,16 +50,13 @@ def load_model_from_zip(zip_file_name, model_file_name):
 
 # Load the model
 clf = load_model_from_zip(model_zip_file_path,'LGBMC2.pkl')
-CORS(app)
 
 # Test the connection
 @app.route('/')
-@cross_origin()
 def index():
     return "Bienvenu(e) !"
     
 @app.route('/prediction/<int:id_client>') # http://127.0.0.1:5001/prediction/100031
-@cross_origin()
 def prediction(id_client): 
 
     # recup ID client
