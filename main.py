@@ -55,7 +55,16 @@ def identite_client_credit (data, id):
         return None
     else:    
         return data_client[list_col]
-    
+
+# IMPORT MODEL
+def load_model_from_zip(zip_file_name, model_file_name):
+    '''loading the trained model from a zip archive'''
+    with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
+        with zip_ref.open(model_file_name, 'r') as pickle_file:
+            fbeta10_scorer = make_scorer(fbeta_score, beta=10)
+            res = pickle.load(pickle_file)
+            return res
+
 ######################################## 
 # LOAD AND PREPARE DATA
 ########################################
@@ -84,6 +93,10 @@ df_dashboard = pd.read_csv('dossier_temporaire/df_dashboardY.csv')
 
 # subdivise dataframe
 selection_ID = df['SK_ID_CURR'][26:50]
+
+# Load the model
+model_zip_file_path = os.path.join(current_directory,'LGBMC2.zip') 
+clf = load_model_from_zip(model_zip_file_path,'LGBMC2.pkl')
 
 def main() :
     # Titre
@@ -178,7 +191,7 @@ def main() :
         return res
     
     ### Upload the model
-    clf = load_model('LGBMC2.pkl')
+    #clf = load_model('LGBMC2.zip/LGBMC2.pkl')
 
     ## Decision
     # Divisez la page en colonnes
