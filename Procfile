@@ -1,4 +1,4 @@
-web: sh setup.sh && streamlit run main.py
+# web: sh setup.sh && streamlit run main.py
 
 
 web: gunicorn app:app #flask : Le premier app fait référence au fichier app.py, 
