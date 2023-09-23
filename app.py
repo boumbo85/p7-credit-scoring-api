@@ -91,4 +91,5 @@ def prediction(id_client):
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5001))
-    app.run(port=port) # debug=True port=5001
+    # port = int(os.environ.get('PORT', $PORT))
+    app.run(port=port) # debug=True port=5001 
