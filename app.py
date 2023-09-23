@@ -17,16 +17,16 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 #parent_directory = os.path.dirname(current_directory)
 
 # Chemin vers le fichier ZIP
-zip_file_path = os.path.join(current_directory, 'df_train3_good-col.zip')
+#zip_file_path = os.path.join(current_directory, 'df_train3_good-col.zip')
 model_zip_file_path = os.path.join(current_directory, 'LGBMC2.zip') #parent_directory
 
 # Ouvrir le fichier ZIP
-with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+#with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
     # Extraire le fichier CSV souhaité dans un dossier temporaire
-    zip_ref.extract('df_train3_good-col.csv', 'dossier_temporaire')
+ #   zip_ref.extract('df_train3_good-col.csv', 'dossier_temporaire')
 
 # Lire le fichier CSV extrait avec pandas
-df = pd.read_csv('dossier_temporaire/df_train3_good-col.csv')
+df = pd.read_csv('df_trainXY_sample.csv')
 
 # LOAD MODEL
 def fbeta10_scorer_custom(test_y, y_pred):
