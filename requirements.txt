@@ -26,3 +26,4 @@ streamlit==1.21.0
 pytest-flask==1.2.0
 ipython==8.14.0
 debugpy==1.5.1
+gunicorn==20.1.0 
