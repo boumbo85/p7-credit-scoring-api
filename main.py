@@ -72,15 +72,6 @@ def load_model_from_zip(zip_file_name, model_file_name):
 # LOAD DATA
 # Obtenez le chemin du répertoire actuel
 current_directory = os.path.dirname(__file__)
-
-# Chemin vers le fichier ZIP
-zip_file_path = os.path.join(current_directory, 'df_train3_good-col.zip')
-
-# Ouvrir le fichier ZIP
-with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-    # Extraire le fichier CSV souhaité dans un dossier temporaire
-    zip_ref.extract('df_train3_good-col.csv', 'dossier_temporaire')
-
 zip_file_dashboard_path = os.path.join(current_directory, 'df_dashboardY.zip')
 
 with zipfile.ZipFile(zip_file_dashboard_path, 'r') as zip_ref:
@@ -88,7 +79,7 @@ with zipfile.ZipFile(zip_file_dashboard_path, 'r') as zip_ref:
     zip_ref.extract('df_dashboardY.csv', 'dossier_temporaire')
 
 # Lire le fichier CSV extrait avec pandas
-df = pd.read_csv('dossier_temporaire/df_train3_good-col.csv')
+df = pd.read_csv('df_trainXY_sample.csv')
 df_dashboard = pd.read_csv('dossier_temporaire/df_dashboardY.csv')
 
 # subdivise dataframe
@@ -187,13 +178,6 @@ def main() :
             st.error("Erreur lors de l'appel à l'application Flask.")
             return None
             
-    ## Upload Prediction
-    #def load_model(model_file_name):
-        #'''loading the trained model'''
-       # pickle_in = open(model_file_name, 'rb') 
-      #  fbeta10_scorer = make_scorer(fbeta_score, beta=10)
-     #   res = pickle.load(pickle_in)
-    #    return res
     
     ## Decision
     # Divisez la page en colonnes
