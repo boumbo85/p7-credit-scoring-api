@@ -1,6 +1,5 @@
 #!/bin/bash
 
-<<<<<<< HEAD
 mkdir -p ~/.streamlit/
 
 echo "\
@@ -16,7 +15,7 @@ enableCORS = false\n\
 pip install -r requirements.txt
 
 # Démarrer l'application Flask en arrière-plan (backend)
-gunicorn app:app &
+gunicorn app:app -b 0.0.0.0:$PORT &
 
 # Attendre quelques secondes pour que l'application Flask démarre
 #sleep 5
