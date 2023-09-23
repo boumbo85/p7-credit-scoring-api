@@ -177,7 +177,9 @@ def main() :
     ## define fonction  recup vs flask
     def get_prediction(id_client):
         # envoy l id client a flask
-        url = "https://home-scoring-app-7ad7db1a493c.herokuapp.com/prediction/"+str(id_client) # local : "http://127.0.0.1:5001/prediction/"
+        url = "https://backend-flask-7a7db7fa4450.herokuapp.com/prediction/"+str(id_client) # local : "http://127.0.0.1:5001/prediction/"
+
+        # url = "https://home-scoring-app-7ad7db1a493c.herokuapp.com/prediction/"+str(id_client) # local : "http://127.0.0.1:5001/prediction/"
         response = requests.get(url)
         if response.status_code == 200:
             return response.json()
