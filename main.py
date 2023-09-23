@@ -177,22 +177,22 @@ def main() :
     ## define fonction  recup vs flask
     def get_prediction(id_client):
         # envoy l id client a flask
-        url = "http://127.0.0.1:5001/prediction/"+str(id_client) 
+        url = "https://home-scoring-app-7ad7db1a493c.herokuapp.com/prediction/"+str(id_client) # local : "http://127.0.0.1:5001/prediction/"
         response = requests.get(url)
-        print(response.json())
-        return response.json()
-     
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Erreur lors de l'appel à l'application Flask.")
+            return None
+            
     ## Upload Prediction
-    def load_model(model_file_name):
-        '''loading the trained model'''
-        pickle_in = open(model_file_name, 'rb') 
-        fbeta10_scorer = make_scorer(fbeta_score, beta=10)
-        res = pickle.load(pickle_in)
-        return res
+    #def load_model(model_file_name):
+        #'''loading the trained model'''
+       # pickle_in = open(model_file_name, 'rb') 
+      #  fbeta10_scorer = make_scorer(fbeta_score, beta=10)
+     #   res = pickle.load(pickle_in)
+    #    return res
     
-    ### Upload the model
-    #clf = load_model('LGBMC2.zip/LGBMC2.pkl')
-
     ## Decision
     # Divisez la page en colonnes
     col1, col2 = st.columns(2)
