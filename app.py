@@ -10,20 +10,10 @@ print("Application lancée")
 app = Flask(__name__)
 
 # LOAD DATA
-# Obtenez le chemin du répertoire actuel
-#current_directory = os.path.dirname(__file__)
-# Obtenez le chemin du répertoire parent du répertoire actuel
 current_directory = os.path.dirname(os.path.abspath(__file__))
-#parent_directory = os.path.dirname(current_directory)
 
 # Chemin vers le fichier ZIP
-#zip_file_path = os.path.join(current_directory, 'df_train3_good-col.zip')
 model_zip_file_path = os.path.join(current_directory, 'LGBMC2.zip') #parent_directory
-
-# Ouvrir le fichier ZIP
-#with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-    # Extraire le fichier CSV souhaité dans un dossier temporaire
- #   zip_ref.extract('df_train3_good-col.csv', 'dossier_temporaire')
 
 # Lire le fichier CSV extrait avec pandas
 df = pd.read_csv('df_trainXY_sample.csv')
@@ -94,8 +84,4 @@ def prediction(id_client):
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5001))
-    # port = int(os.environ.get('PORT', $PORT))
-    # app.run() # debug=True port=5001 port=port 
     app.run(port=port)
-
-    #app.run(debug=True, host='0.0.0.0', port=os.environ.get('PORT', 5000))
