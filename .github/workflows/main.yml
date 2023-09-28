@@ -33,5 +33,5 @@ jobs:
        uses: akhileshns/heroku-deploy@v3.12.12 
        with:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: home-scoring-app
+          heroku_app_name: backend-flask
           heroku_email: ${{ secrets.MAIL_PERSO }}
