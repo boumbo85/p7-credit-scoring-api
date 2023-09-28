@@ -22,14 +22,13 @@ jobs:
        
      - name: Set up Python version
        uses: actions/setup-python@v1  
-     
-	# install requirements to enable GitHub run tests
+       
      - name: Install dependencies
        run: pip install -r requirements.txt
-
+       
      - name: Run tests
-       run: pytest # test_app.py
-	
+       run: pytest 
+       
      - name: Deploy to Heroku
        uses: akhileshns/heroku-deploy@v3.12.12 
        with:
