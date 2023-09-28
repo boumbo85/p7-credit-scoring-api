@@ -1,4 +1,4 @@
-name: Build and Deploy to Heroku CI/CD
+name: Build_and_Deploy_to_Heroku_CI/CD
 
 # Controls when the workflow will run
 on:
@@ -18,8 +18,11 @@ jobs:
 
     #
     steps:
-      - uses: actions/checkout@v2  
-      - uses: actions/setup-python@v2  
+      - name: Checkout repository
+      	uses: actions/checkout@v2  
+       
+      - name: Set up Python version
+      	uses: actions/setup-python@v1  
      
 	# install requirements to enable GitHub run tests
       - name: Install dependencies
