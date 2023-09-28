@@ -18,8 +18,11 @@ jobs:
 
     #
     steps:
-      - uses: actions/checkout@v2  
-      - uses: actions/setup-python@v2  
+      - name: Checkout code
+        uses: actions/checkout@v2  
+
+      - name: Set up Python
+        uses: actions/setup-python@v2 
      
 	# install requirements to enable GitHub run tests
       - name: Install dependencies
