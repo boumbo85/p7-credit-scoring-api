@@ -1,6 +1,6 @@
 # Dashboard Streamlit autonome (prédiction + SHAP calculés en local).
 # Versions alignées sur l'environnement d'entraînement du modèle (scikit-learn 1.2.1)
-# et compatibles Python 3.11 (voir runtime.txt).
+# et compatibles Python 3.10 (voir runtime.txt).
 streamlit==1.31.1
 pandas==1.5.3
 numpy==1.23.5

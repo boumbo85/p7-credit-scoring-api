@@ -56,7 +56,8 @@ streamlit run main.py
 1. Pousser le repo sur GitHub.
 2. Sur share.streamlit.io : **New app** → sélectionner le repo et la branche.
 3. **Main file path : `main.py`**.
-4. Déployer. `runtime.txt` fixe Python 3.11 et `requirements.txt` liste les
+4. Déployer. `runtime.txt` fixe Python 3.10, `packages.txt` installe `libgomp1`
+   (requis par LightGBM) et `requirements.txt` liste les
    dépendances (versions alignées sur l'entraînement du modèle, scikit-learn 1.2.1).
 
 Fichiers requis au runtime (versionnés dans le repo) : `main.py`, `LGBMC2.zip`
