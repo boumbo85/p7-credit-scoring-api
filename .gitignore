@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Artefacts d'exécution (générés au runtime, pas à versionner)
+dossier_temporaire/
+
+# Outils ponctuels
+bfg.jar
+
+# OS
+.DS_Store

@@ -11,7 +11,6 @@ import seaborn as sns
 import plotly.graph_objects as go
 import shap
 import plotly.express as px
-import requests
 import zipfile
 import os
 
@@ -90,6 +89,50 @@ selection_ID = df['SK_ID_CURR']
 model_zip_file_path = os.path.join(current_directory,'LGBMC2.zip') 
 clf = load_model_from_zip(model_zip_file_path,'LGBMC2.pkl')
 
+# Source de données utilisée pour la prédiction (features brutes attendues par le modèle).
+# Les 2 dernières colonnes sont SK_ID_CURR et TARGET -> on les retire pour obtenir X.
+df_predict = df.copy()
+
+# Explainer SHAP construit une seule fois sur l'estimateur final de la pipeline.
+# (évite de le reconstruire à chaque interaction utilisateur)
+_shap_explainer = shap.TreeExplainer(clf.named_steps['lgbmclassifier'])
+
+
+def compute_prediction(id_client):
+    """Calcule la prédiction, les probabilités et les valeurs SHAP localement.
+
+    Remplace l'ancien appel à l'API Flask (Heroku) : même structure de retour,
+    mais tout est calculé en local -> une seule app Streamlit à déployer.
+    """
+    id_client = int(id_client)
+    selected_row = df_predict.loc[df_predict['SK_ID_CURR'] == id_client]
+    if selected_row.empty:
+        return None
+
+    X_selected = selected_row.iloc[:, :-2]
+
+    y_pred = clf.predict(X_selected)
+    y_pred_proba = clf.predict_proba(X_selected)
+
+    shap_values = _shap_explainer.shap_values(X_selected)
+    base_value = _shap_explainer.expected_value
+    # TreeExplainer renvoie une liste [classe0, classe1] pour un classifieur binaire ;
+    # on garde la classe 0, comme le faisait le backend Flask d'origine.
+    if isinstance(shap_values, list):
+        shap_vector = shap_values[0]
+        base_scalar = base_value[0]
+    else:
+        shap_vector = shap_values
+        base_scalar = base_value
+
+    return {
+        'ID': id_client,
+        'Prediction': y_pred.tolist(),
+        'Predict_proba': y_pred_proba.tolist(),
+        'Feature_Importance': shap_vector.tolist(),
+        'Expected_value': base_scalar,
+    }
+
 def main() :
     # Titre
     html_temp = """
@@ -166,18 +209,13 @@ def main() :
     #######################################
 
     # Display Decision
-    ## define fonction  recup vs flask
+    ## Prédiction calculée localement (plus d'appel réseau vers Flask/Heroku)
     def get_prediction(id_client):
-        # envoy l id client a flask
-        url = "https://backend-flask-7a7db7fa4450.herokuapp.com/prediction/"+str(id_client) # local : "http://127.0.0.1:5001/prediction/"
-        response = requests.get(url)
+        result = compute_prediction(id_client)
+        if result is None:
+            st.error("Client introuvable dans les données.")
+        return result
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error("Erreur lors de l'appel à l'application Flask.")
-            return None
-            
     
     ## Decision
     # Divisez la page en colonnes
@@ -194,7 +232,11 @@ def main() :
 
         # Colonne de droite pour les résultats de la décision
         result = get_prediction(option)
-        if result['Prediction'] == 0:
+        if result is None:
+            st.stop()
+        # Prediction est une liste ([0] ou [1]) : on lit le 1er élément.
+        # Classe 1 = défaut => crédit refusé.
+        if result['Prediction'][0] == 0:
             decision_text = "LOAN GRANTED"
             decision_color = "green"
         else:

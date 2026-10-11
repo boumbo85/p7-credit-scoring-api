@@ -35,10 +35,36 @@ Le modèle pourrait être amélioré de deux manières:
  - optimisation des paramètres du model  
  - optimisation du choix des variables
 
-## Dashboard / API
-J'ai utilisé deux librairies Python pour ce sujet :
- - Flask
- - Streamlit
+## Dashboard
+
+L'application est un **dashboard Streamlit autonome** (`main.py`) : prédiction et
+valeurs SHAP sont calculées en local, directement à partir du modèle sérialisé.
+
+> Historique : une première version séparait un backend **Flask** (API de scoring,
+> `app.py`) d'un frontend **Streamlit** (`main.py`), le backend étant hébergé sur
+> Heroku. L'offre gratuite Heroku ayant disparu, le backend n'est plus joignable.
+> Le dashboard embarque désormais le modèle et se passe de toute API externe.
+
+### Lancer en local
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run main.py
+```
+
+### Déploiement (Streamlit Community Cloud)
+1. Pousser le repo sur GitHub.
+2. Sur share.streamlit.io : **New app** → sélectionner le repo et la branche.
+3. **Main file path : `main.py`**.
+4. Déployer. `runtime.txt` fixe Python 3.11 et `requirements.txt` liste les
+   dépendances (versions alignées sur l'entraînement du modèle, scikit-learn 1.2.1).
+
+Fichiers requis au runtime (versionnés dans le repo) : `main.py`, `LGBMC2.zip`
+(modèle), `df_trainXY_sample.csv` (features des clients), `df_dashboardY.zip`
+(données d'affichage), `SHAP_summary_GBC.png` (importance globale).
+
+> `app.py`, `Procfile` et `setup.sh` sont des reliquats de l'ancienne configuration
+> Heroku/Flask : inutiles pour Streamlit Cloud, conservés à titre d'archive.
 
 ## Données d'entrées
  - Lien de téléchargement des données d'entrées : https://www.kaggle.com/c/home-credit-default-risk/data 
