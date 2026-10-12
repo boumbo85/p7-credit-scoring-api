@@ -1,6 +1,10 @@
-# P7_HOME_SCORING
-# OpenClassRooms_Projet7
-#### <i>Implémentez un modèle de scoring</i>
+# P7 — Credit Risk Scoring
+#### OpenClassrooms · Implémentez un modèle de scoring
+
+🔗 **Démo en ligne** : https://boumbo85-lw65qk7fnzxeebpfssaajo.streamlit.app
+
+> Scoring de risque de défaut de crédit, avec explication SHAP par client, servi
+> par un dashboard Streamlit autonome.
 
 ## Présentation
 La mission principale de ce projet est de prédire le risque de faillite d'un client pour une société de crédit. Pour cela, nous devons configurer un modèle de classification binaire et d'en analyser les différentes métriques.
@@ -13,27 +17,17 @@ Ce projet consiste à créer une API web avec un Dashboard interactif. Celui-ci 
 
 La partie features engineering n'étant pas la partie la plus importante de ce projet, il nous est proposé d'utiliser un Notebook disponible sur le site de Kaggle, dont le lien est disponible au bas de cette présentation.
 
-## Construction
+## Contenu du dépôt
 
-<u>Dans ce dépôt, vous trouverez :</u>
-
- - Un dossier avec le Notebook Jupyter pour l'étude des données, l'entraînement et la configuration du modèle de classification.
- - Un dossier avec la note technique qui explique en détails la construction et les résultats du modèle.
- - Un dossier avec la configuration locale de l'API. Dans le but de comprendre le fonctionnement de Flask, cette "version" de l'API s'appuie sur deux fichiers .py :
-    - API.py qui est le fichier Flask contenant la partie backend.
-    - DASHBOARD.py contient la partie Frontend codée avec Streamlit.
- - Dans la branche principale, la configuration déployée sur Azure. Cette version n'utilise que Streamlit qui a l'avantage d'être très simple à coder
-
-## Modèle de classification
-Le modèle retenu pour cet exercice est le modèle LGBMC. Le meilleur score (AUC) obtenu est de 0.78.
-XGboost a obtenu un très leger meilleur score, mais est beaucoup plus lent.
-Les prédictions obtenues avec le model sont assez déviantes (cf simulation d'écoulement des données /datadrift).
-La caractéristique majeure de ces données sont le fort déséquilibrage des classes.
-En utilisant, une rééquilibration artificielle (avec smote) intégré à une validation croisée, j ai pu sensiblement améliorer les prédictions.
-Le modèle prédit plus de non solvables que leur attribution réelle. 
-Le modèle pourrait être amélioré de deux manières:
- - optimisation des paramètres du model  
- - optimisation du choix des variables
+| Fichier | Rôle |
+|---|---|
+| `main.py` | Dashboard Streamlit autonome (score + SHAP calculés en local) |
+| `LGBMC2.zip` | Modèle LightGBM sérialisé (pipeline `imbalanced-learn`) |
+| `df_trainXY_sample.csv` | Échantillon de clients avec leurs features (prédiction) |
+| `df_dashboardY.zip` | Données descriptives des clients (affichage) |
+| `SHAP_summary_GBC.png` | Importance globale des variables (SHAP) |
+| `requirements.txt`, `runtime.txt`, `packages.txt` | Configuration de déploiement |
+| `app.py`, `Procfile`, `setup.sh` | Archive de l'ancienne version Flask/Heroku (non utilisés) |
 
 ## Dashboard
 
@@ -66,6 +60,85 @@ Fichiers requis au runtime (versionnés dans le repo) : `main.py`, `LGBMC2.zip`
 
 > `app.py`, `Procfile` et `setup.sh` sont des reliquats de l'ancienne configuration
 > Heroku/Flask : inutiles pour Streamlit Cloud, conservés à titre d'archive.
+
+## Démarche
+
+### 1. Problématique
+Un organisme de crédit veut estimer la probabilité qu'un client fasse défaut
+sur son prêt, et surtout **rendre chaque décision explicable** à un conseiller
+non data scientist. L'enjeu métier n'est pas symétrique : accorder un crédit à
+un futur défaillant (faux négatif) coûte bien plus cher que refuser un bon
+client (faux positif). Le modèle doit donc être optimisé pour ce coût, pas pour
+l'exactitude brute.
+
+### 2. Méthodologie
+- **Données** : jeu Home Credit Default Risk (Kaggle), ~307 000 clients, fortement
+  déséquilibré (~8 % de défauts).
+- **Feature engineering** : agrégation des tables annexes (bureau, previous
+  applications…), encodage one-hot, ratios métier (taux d'endettement, LTV,
+  apport). ~166 variables en entrée du modèle.
+- **Rééquilibrage** : `SMOTE` (sur-échantillonnage de la classe minoritaire)
+  combiné à un `RandomUnderSampler`, dans une pipeline `imbalanced-learn` pour
+  éviter toute fuite de données en validation croisée.
+- **Modèle** : `LightGBM`, comparé à XGBoost (score très légèrement supérieur
+  mais nettement plus lent) et à des baselines linéaires.
+- **Métrique de sélection** : `Fβ` avec **β = 10**, qui pénalise fortement les
+  faux négatifs — cohérent avec le coût métier.
+- **Seuil de décision** : optimisé sur la matrice de coût plutôt que fixé à 0,5.
+- **Explicabilité** : `SHAP` (TreeExplainer) pour l'importance globale et, surtout,
+  l'explication **par client**.
+- **Suivi d'expériences** : `MLflow` pendant la phase de sélection de modèle
+  (tracking des runs, métriques et paramètres).
+
+### 3. Challenges
+- Transformer un déséquilibre de classes en **décision métier** : rééquilibrer à
+  l'entraînement, puis caler le seuil sur le coût réel d'un faux négatif.
+- Rendre l'explicabilité **lisible pour un non-expert** (waterfall SHAP par client,
+  pas seulement une importance globale).
+- Industrialiser : passer d'un notebook à une application déployée et maintenable.
+
+### 4. Résultats
+- **AUC ≈ 0,78** sur le jeu de validation d'origine — proche du plafond pratique
+  généralement observé sur ce dataset (~0,80).
+- Dashboard interactif : score, jauge de probabilité, décision, explication SHAP
+  locale et informations descriptives du client.
+- Application **déployée et accessible en ligne** (Streamlit Community Cloud).
+
+### 5. Interprétation
+Les variables les plus influentes rejoignent l'intuition métier : sources de
+revenu, taux d'endettement, montant et ancienneté du crédit, historique externe.
+Le waterfall SHAP permet à un conseiller de voir, pour **un** client donné, quelles
+variables ont poussé le score vers le défaut ou l'acceptation.
+
+### 6. Limites
+- **Calibration des probabilités** : le rééquilibrage SMOTE gonfle les probabilités
+  de défaut. Sur un échantillon représentatif (classes réelles), le modèle
+  sérialisé actuel sur-prédit nettement le défaut — il faut une **recalibration**
+  (Platt / isotonic) ou l'application stricte du seuil métier avant d'exploiter les
+  probabilités telles quelles.
+- **Data drift** : les simulations d'écoulement des données montrent une dérive des
+  prédictions dans le temps → un ré-entraînement périodique serait nécessaire en
+  production.
+- **Démo** : l'app embarque un échantillon réduit de clients pour rester légère.
+
+### 7. Pistes d'amélioration (avec plus de temps)
+- Recalibrer le modèle et re-figer le seuil de décision sur le coût métier.
+- Optimiser les hyperparamètres (Optuna) et la sélection de variables.
+- Ajouter une surveillance du drift (evidently) et un ré-entraînement planifié.
+- Exposer une vraie API de scoring (FastAPI) si un découplage front/back redevient utile.
+
+### 8. Retour critique
+Le point le plus formateur a été de comprendre que **l'exactitude n'est pas la
+bonne boussole** sur un problème déséquilibré à coût asymétrique. Le choix du Fβ
+(β = 10) et d'un seuil orienté coût est le vrai cœur du projet. À refaire, je
+traiterais la calibration des probabilités dès l'entraînement plutôt qu'après coup,
+car c'est elle qui conditionne la lisibilité du score côté métier.
+
+### 9. Conclusion
+Un système de scoring de bout en bout, de la donnée brute à une application
+déployée où **chaque décision reste auditable**. Projet de formation
+(OpenClassrooms), reconstruit en application Streamlit autonome pour rester
+démontrable sans backend à maintenir.
 
 ## Données d'entrées
  - Lien de téléchargement des données d'entrées : https://www.kaggle.com/c/home-credit-default-risk/data 
