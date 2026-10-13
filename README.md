@@ -167,6 +167,15 @@ hors périmètre de cette archive) :
 3. mesurer l'équité entre groupes (p. ex. *demographic parity*, *equal opportunity*)
    et documenter l'écart résiduel.
 
+**Note sur le choix du modèle en contexte réglementé.** Ce projet utilise un
+gradient boosting (LightGBM) rendu explicable *a posteriori* via SHAP. En octroi de
+crédit réel, le modèle de décision final est souvent plus **intrinsèquement
+interprétable** (régression logistique, *scorecard* WOE), pour l'auditabilité et la
+justification réglementaire ; un modèle « boîte noire » sert alors plutôt de
+challenger / support. Un passage en production supposerait donc soit un modèle
+interprétable par construction, soit une couche de justification réglementaire
+documentée au-dessus du scoring.
+
 ### 10. Conclusion
 Un système de scoring de bout en bout, de la donnée brute à une application
 déployée où **chaque décision reste auditable**. Projet de formation
