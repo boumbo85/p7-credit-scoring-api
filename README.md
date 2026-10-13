@@ -125,10 +125,15 @@ variables ont poussé le score vers le défaut ou l'acceptation.
 - **Data drift** : les simulations d'écoulement des données montrent une dérive des
   prédictions dans le temps → un ré-entraînement périodique serait nécessaire en
   production.
+- **Variables protégées** : le modèle utilise encore genre, âge et situation
+  familiale — exclues de l'explication affichée, mais à retirer du modèle en
+  production (voir § Fairness & conformité).
 - **Démo** : l'app embarque un échantillon de 400 clients (à la vraie distribution)
   pour rester légère.
 
 ### 7. Pistes d'amélioration (avec plus de temps)
+- Retirer les variables protégées du modèle, ré-entraîner et mesurer l'équité
+  entre groupes (fairness) — cf. § Fairness & conformité.
 - Optimiser les hyperparamètres (Optuna) et la sélection de variables pour gagner en
   pouvoir discriminant.
 - Ajouter une surveillance du drift (evidently) et un ré-entraînement planifié.
@@ -142,7 +147,27 @@ clairement les trois temps : rééquilibrer (apprentissage), **calibrer** (isoto
 pour des probabilités fiables), puis **choisir le seuil** sur le coût métier
 (décision). C'est cette chaîne, plus que l'AUC, qui fait la valeur du projet.
 
-### 9. Conclusion
+### 9. Fairness & conformité
+Le jeu de données contient des **variables protégées** — genre (`CODE_GENDER`),
+âge (`DAYS_BIRTH`) et situation familiale (`NAME_FAMILY_STATUS`). En crédit, motiver
+une décision par ces caractéristiques est **discriminatoire et non conforme** (RGPD,
+recommandations ACPR, AI Act).
+
+État actuel et honnêteté sur la limite :
+- **Dans l'explication affichée** (lecture métier), ces variables sont **exclues** :
+  aucune décision n'est justifiée au conseiller par le genre, l'âge ou la situation
+  familiale.
+- **Dans le modèle**, elles sont **encore présentes** : le `.pkl` a été entraîné avec.
+  Les masquer à l'affichage ne supprime pas le biais sous-jacent.
+
+Correction attendue en production (non faite ici car elle impose un ré-entraînement,
+hors périmètre de cette archive) :
+1. retirer les variables protégées (et leurs proxys évidents) des features ;
+2. ré-entraîner et re-calibrer ;
+3. mesurer l'équité entre groupes (p. ex. *demographic parity*, *equal opportunity*)
+   et documenter l'écart résiduel.
+
+### 10. Conclusion
 Un système de scoring de bout en bout, de la donnée brute à une application
 déployée où **chaque décision reste auditable**. Projet de formation
 (OpenClassrooms), reconstruit en application Streamlit autonome pour rester

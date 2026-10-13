@@ -172,13 +172,28 @@ def _nice_label(raw):
     return raw.replace('_', ' ').lower()
 
 
+# Variables protégées (genre, âge, situation familiale) : en crédit, motiver une
+# décision par ces caractéristiques est discriminatoire et non conforme (RGPD, ACPR).
+# On les exclut de la LECTURE MÉTIER affichée. NB : elles sont encore présentes dans
+# le modèle — la vraie correction est de les retirer et de ré-entraîner (voir README,
+# section Fairness & conformité).
+PROTECTED_PREFIXES = ('CODE_GENDER', 'DAYS_BIRTH', 'AGE', 'NAME_FAMILY_STATUS')
+
+
+def _is_protected(name):
+    return name.startswith(PROTECTED_PREFIXES)
+
+
 def business_reading(shap_default, names, decision, top_n=3):
     """Construit une phrase 'lecture métier' à partir des valeurs SHAP (classe défaut).
 
     Une valeur SHAP positive pousse vers le DÉFAUT, négative vers l'acceptation.
-    On liste les variables qui ont le plus poussé la décision retenue.
+    On liste les variables qui ont le plus poussé la décision retenue, en excluant
+    les variables protégées (non conformes comme motif de décision crédit).
     """
     pairs = sorted(zip(names, shap_default), key=lambda p: abs(p[1]), reverse=True)
+    # retirer les variables protégées de l'explication montrée au conseiller
+    pairs = [(n, v) for n, v in pairs if not _is_protected(n)]
     if decision == 1:  # refusé : variables qui poussent vers le défaut (SHAP > 0)
         candidates = [(n, v) for n, v in pairs if v > 0]
         verdict = "Crédit refusé"
