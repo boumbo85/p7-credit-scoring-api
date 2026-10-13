@@ -92,8 +92,16 @@ df_dashboard = df_dashboard[df_dashboard['SK_ID_CURR'].isin(df['SK_ID_CURR'])].r
 selection_ID = df['SK_ID_CURR']
 
 # Load the model
-model_zip_file_path = os.path.join(current_directory,'LGBMC2.zip') 
-clf = load_model_from_zip(model_zip_file_path,'LGBMC2.pkl')
+# Modèle CALIBRÉ (isotonic) : enveloppe la pipeline imblearn (SMOTE + LightGBM) et
+# corrige les probabilités gonflées par le rééquilibrage. Les probas reflètent
+# désormais le vrai risque (proba moyenne ≈ taux de défaut réel ~8 %).
+calibrated_zip = os.path.join(current_directory, 'LGBMC2_calibrated.zip')
+clf = load_model_from_zip(calibrated_zip, 'LGBMC2_calibrated.pkl')
+
+# Pipeline sous-jacente (pour SHAP) : CalibratedClassifierCV expose le modèle de
+# base via .estimator ; on y récupère l'étage LightGBM.
+_base_pipeline = clf.estimator
+_lgbm = _base_pipeline.named_steps['lgbmclassifier']
 
 # Source de données utilisée pour la prédiction (features brutes attendues par le modèle).
 # Les 2 dernières colonnes sont SK_ID_CURR et TARGET -> on les retire pour obtenir X.
@@ -101,20 +109,19 @@ df_predict = df.copy()
 
 # Explainer SHAP construit une seule fois sur l'estimateur final de la pipeline.
 # (évite de le reconstruire à chaque interaction utilisateur)
-_shap_explainer = shap.TreeExplainer(clf.named_steps['lgbmclassifier'])
+_shap_explainer = shap.TreeExplainer(_lgbm)
 
 # ──────────────────────────────────────────────────────────────────────
 # SEUIL DE DÉCISION MÉTIER
 # ──────────────────────────────────────────────────────────────────────
-# Le modèle est entraîné sur données rééquilibrées (SMOTE) : ses probabilités
-# sont décalées vers le haut. Le seuil 0.5 par défaut de clf.predict() refuserait
-# donc quasiment tout le monde.
-# On fixe à la place un seuil calé sur le COÛT MÉTIER : un faux négatif (accorder
-# un crédit à un futur défaillant) coûte bien plus cher qu'un faux positif. Avec un
-# ratio de coût FN:FP de 10:1 (cohérent avec le Fβ β=10 utilisé à l'entraînement),
-# le seuil qui minimise le coût total sur un échantillon représentatif vaut ~0.81.
-# À ce seuil : ~71 % des clients acceptés / ~29 % refusés, recall défaut ~0.45.
-DECISION_THRESHOLD = 0.81
+# Les probabilités sont maintenant CALIBRÉES (isotonic) : une proba de défaut de
+# 0.095 correspond vraiment à ~9,5 % de risque. On fixe le seuil sur le COÛT MÉTIER :
+# un faux négatif (accorder un crédit à un futur défaillant) coûte bien plus cher
+# qu'un faux positif. Avec un ratio de coût FN:FP de 10:1 (cohérent avec le Fβ β=10
+# de l'entraînement), le seuil qui minimise le coût total sur un échantillon
+# représentatif vaut ~0.095 des probas calibrées.
+# À ce seuil : ~66 % des clients acceptés / ~34 % refusés, recall défaut ~0.50.
+DECISION_THRESHOLD = 0.095
 
 # Libellés lisibles pour les variables les plus parlantes (lecture métier).
 # Les noms non mappés sont affichés tels quels, nettoyés.

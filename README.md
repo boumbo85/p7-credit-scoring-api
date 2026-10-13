@@ -22,8 +22,9 @@ La partie features engineering n'étant pas la partie la plus importante de ce p
 | Fichier | Rôle |
 |---|---|
 | `main.py` | Dashboard Streamlit autonome (score + SHAP calculés en local) |
-| `LGBMC2.zip` | Modèle LightGBM sérialisé (pipeline `imbalanced-learn`) |
-| `df_trainXY_sample.csv` | Échantillon de clients avec leurs features (prédiction) |
+| `LGBMC2_calibrated.zip` | Modèle **calibré** (isotonic) servi par l'app |
+| `LGBMC2.zip` | Modèle LightGBM brut d'origine (pipeline `imbalanced-learn`) |
+| `df_trainXY_sample.csv` | Échantillon de 400 clients avec leurs features (prédiction) |
 | `df_dashboardY.zip` | Données descriptives des clients (affichage) |
 | `SHAP_summary_GBC.png` | Importance globale des variables (SHAP) |
 | `requirements.txt`, `runtime.txt`, `packages.txt` | Configuration de déploiement |
@@ -84,9 +85,12 @@ l'exactitude brute.
   mais nettement plus lent) et à des baselines linéaires.
 - **Métrique de sélection** : `Fβ` avec **β = 10**, qui pénalise fortement les
   faux négatifs — cohérent avec le coût métier.
-- **Seuil de décision** : optimisé sur la matrice de coût plutôt que fixé à 0,5.
-- **Explicabilité** : `SHAP` (TreeExplainer) pour l'importance globale et, surtout,
-  l'explication **par client**.
+- **Calibration** : `CalibratedClassifierCV` (isotonic) sur un jeu non rééquilibré,
+  pour corriger les probabilités gonflées par SMOTE (voir Résultats).
+- **Seuil de décision** : optimisé sur la matrice de coût (FN:FP = 10:1) plutôt que
+  fixé à 0,5, appliqué aux probabilités **calibrées**.
+- **Explicabilité** : `SHAP` (TreeExplainer) pour l'importance globale, l'explication
+  **par client** (waterfall) et une **lecture métier** en langage naturel.
 - **Suivi d'expériences** : `MLflow` pendant la phase de sélection de modèle
   (tracking des runs, métriques et paramètres).
 
@@ -98,10 +102,14 @@ l'exactitude brute.
 - Industrialiser : passer d'un notebook à une application déployée et maintenable.
 
 ### 4. Résultats
-- **AUC ≈ 0,78** sur le jeu de validation d'origine — proche du plafond pratique
-  généralement observé sur ce dataset (~0,80).
-- Dashboard interactif : score, jauge de probabilité, décision, explication SHAP
-  locale et informations descriptives du client.
+- **Calibration** : score de Brier **0,55 → 0,07** après recalibration isotonic.
+  La probabilité moyenne passe de ~0,77 à ~0,08, soit exactement le taux de défaut
+  réel — les probabilités sont désormais interprétables.
+- **Pouvoir discriminant** : AUC-ROC ≈ 0,62 et AUC-PR ≈ 0,12 sur un échantillon
+  représentatif (la calibration ne change pas le classement, seulement l'échelle).
+  Au seuil de coût retenu : ~66 % acceptés / ~34 % refusés, recall défaut ~0,50.
+- Dashboard interactif : jauge de probabilité **avec le seuil de décision**, verdict,
+  explication SHAP locale, lecture métier et informations descriptives du client.
 - Application **déployée et accessible en ligne** (Streamlit Community Cloud).
 
 ### 5. Interprétation
@@ -111,28 +119,28 @@ Le waterfall SHAP permet à un conseiller de voir, pour **un** client donné, qu
 variables ont poussé le score vers le défaut ou l'acceptation.
 
 ### 6. Limites
-- **Calibration des probabilités** : le rééquilibrage SMOTE gonfle les probabilités
-  de défaut. Sur un échantillon représentatif (classes réelles), le modèle
-  sérialisé actuel sur-prédit nettement le défaut — il faut une **recalibration**
-  (Platt / isotonic) ou l'application stricte du seuil métier avant d'exploiter les
-  probabilités telles quelles.
+- **Pouvoir discriminant modéré** : AUC-ROC ~0,62 sur données réelles. La calibration
+  rend les probabilités fiables mais ne crée pas de signal — pour aller plus loin, il
+  faudrait enrichir les variables (sources externes, historique) et ré-entraîner.
 - **Data drift** : les simulations d'écoulement des données montrent une dérive des
   prédictions dans le temps → un ré-entraînement périodique serait nécessaire en
   production.
-- **Démo** : l'app embarque un échantillon réduit de clients pour rester légère.
+- **Démo** : l'app embarque un échantillon de 400 clients (à la vraie distribution)
+  pour rester légère.
 
 ### 7. Pistes d'amélioration (avec plus de temps)
-- Recalibrer le modèle et re-figer le seuil de décision sur le coût métier.
-- Optimiser les hyperparamètres (Optuna) et la sélection de variables.
+- Optimiser les hyperparamètres (Optuna) et la sélection de variables pour gagner en
+  pouvoir discriminant.
 - Ajouter une surveillance du drift (evidently) et un ré-entraînement planifié.
 - Exposer une vraie API de scoring (FastAPI) si un découplage front/back redevient utile.
 
 ### 8. Retour critique
 Le point le plus formateur a été de comprendre que **l'exactitude n'est pas la
-bonne boussole** sur un problème déséquilibré à coût asymétrique. Le choix du Fβ
-(β = 10) et d'un seuil orienté coût est le vrai cœur du projet. À refaire, je
-traiterais la calibration des probabilités dès l'entraînement plutôt qu'après coup,
-car c'est elle qui conditionne la lisibilité du score côté métier.
+bonne boussole** sur un problème déséquilibré à coût asymétrique, et que **SMOTE
+règle l'apprentissage mais casse la calibration**. La version actuelle sépare donc
+clairement les trois temps : rééquilibrer (apprentissage), **calibrer** (isotonic,
+pour des probabilités fiables), puis **choisir le seuil** sur le coût métier
+(décision). C'est cette chaîne, plus que l'AUC, qui fait la valeur du projet.
 
 ### 9. Conclusion
 Un système de scoring de bout en bout, de la donnée brute à une application
