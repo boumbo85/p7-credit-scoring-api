@@ -188,6 +188,17 @@ def business_reading(shap_default, names, decision, top_n=3):
         verdict = "Crédit accordé"
         liaison = "principaux facteurs rassurants"
 
+    # intensité relative (mots) plutôt que la valeur SHAP brute, illisible pour un conseiller
+    strongest = abs(candidates[0][1]) if candidates else 1.0
+
+    def _intensity(v):
+        r = abs(v) / strongest if strongest else 0
+        if r >= 0.75:
+            return "fort"
+        if r >= 0.45:
+            return "moyen"
+        return "modéré"
+
     # garder les top_n libellés DISTINCTS (évite "genre" répété via one-hot)
     morceaux, seen = [], set()
     for n, v in candidates:
@@ -195,7 +206,7 @@ def business_reading(shap_default, names, decision, top_n=3):
         if lbl in seen:
             continue
         seen.add(lbl)
-        morceaux.append(f"{lbl} ({v:+.2f})")
+        morceaux.append(f"{lbl} ({_intensity(v)})")
         if len(morceaux) >= top_n:
             break
 
@@ -253,7 +264,7 @@ def compute_prediction(id_client):
 def main() :
     # Titre
     html_temp = """
-    <div style="background-color: tomato; padding:10px; border-radius:10px">
+    <div style="background-color: #1e3a5f; padding:10px; border-radius:10px">
     <h1 style="color: white; text-align:center">Risque de Défaut de Crédit</h1>
     </div>
     <p style="font-size: 20px; font-weight: bold; text-align:center"> Aide à la décision attribution de Crédit…</p>
@@ -341,7 +352,7 @@ def main() :
     # Colonne de gauche pour le titre encadré
     with col1:
         titre_decision = """
-            <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+            <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
             <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Décision</h1>
             </div>
         """
@@ -362,7 +373,7 @@ def main() :
         
         # Afficher résultats
         decision_circle = f"""
-             <div style="width: 150px; height: 150px; background-color: black;
+             <div style="width: 150px; height: 150px; background-color: #0f172a;
                 border-radius: 50%; display: flex; align-items: center;
                 justify-content: center; margin: auto; border: 5px solid {decision_color};">
             <h2 style="color: {decision_color}; text-align: center; font-weight: bold;">{decision_text}</h2>
@@ -381,14 +392,14 @@ def main() :
         if reading:
             st.markdown(
                 f"<p style='text-align:center; font-size:14px; color:#eee; "
-                f"background:#1e1e1e; padding:10px; border-radius:8px; margin-top:12px;'>"
+                f"background:#0f172a; padding:10px; border-radius:8px; margin-top:12px;'>"
                 f"{reading}</p>",
                 unsafe_allow_html=True)
 
     # Display Customer solvability prediction
     with col2:
         titre_prediction = """
-        <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+        <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
         <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Prédiction</h2>
         </div>
         """
@@ -423,7 +434,7 @@ def main() :
                                 'thickness': 0.9,
                                 'value': seuil_pct}}))
 
-        fig_jauge.update_layout(paper_bgcolor='black',
+        fig_jauge.update_layout(paper_bgcolor='#0f172a',
                                 height=400, width=350,
                                 font={'color': 'white', 'family': 'Arial'},
                                 margin=dict(l=0, r=0, b=0, t=0, pad=0))
@@ -439,7 +450,7 @@ def main() :
     if  show_global_feature_importance: 
         with col1:
             titre_global = """
-            <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+            <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
             <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Globale</h2>
             </div>
             """
@@ -450,7 +461,7 @@ def main() :
     if show_client_feature_importance:
         with col2:
             titre_local = f"""
-            <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+            <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
             <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Client {option}</h2>
             </div>
             """
@@ -471,7 +482,7 @@ def main() :
 
     # Display Client informations
     titre_dossier = """
-        <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+        <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
         <h2 style="color: white; text-align: left; font-weight: bold; font-size: 24px;">ANALYSE DOSSIER CLIENT</h2>
         </div>
         """
@@ -479,7 +490,7 @@ def main() :
 
     # Customer information display : Customer Gender, Age, Family status, Children, …
     titre_info = """
-                <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                 <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">INFORMATIONS CLIENT</h2>
                 </div>
                 """
@@ -490,7 +501,7 @@ def main() :
     if show_client_private_info:
         with col1:
             titre_private = """
-            <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+            <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
             <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Personnelles</h2>
             </div>
             """
@@ -516,7 +527,7 @@ def main() :
     if show_client_banq_info:
         with col2: 
             titre_bank = """
-            <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+            <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
             <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Bancaires</h2>
             </div>
             """
@@ -545,7 +556,7 @@ def main() :
     if show_client_loan_info:
         with col1:
             titre_loan_ongoing = """
-                <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                 <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Crédits en cours</h2>
                 </div>
                 """
@@ -580,7 +591,7 @@ def main() :
         with col2:
             # Info credit demandé
             titre_loan = """
-                <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                 <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">Crédits demandé</h2>
                 </div>
                 """
@@ -621,7 +632,7 @@ def main() :
     list_POURC  = ['RATE_INDEBTEDNESS','LTV_ratio']
     df_dashboard[list_QUANT] = df_dashboard[list_QUANT].apply(pd.to_numeric, errors='coerce')
     titre_distribution = """
-                <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                 <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">DISTRIBUTION</h2>
                 </div>
                 """
@@ -631,7 +642,7 @@ def main() :
     if show_client_feature1:
         if selected_featured in list_QUAL:
             titre_feature1 = f"""
-                <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                 <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">{selected_featured}</h2>
                 </div>
                 """
@@ -648,7 +659,7 @@ def main() :
         else:
             with col1:
                 titre_feature1 = f"""
-                    <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                    <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                     <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">{selected_featured}</h2>
                     </div>
                     """
@@ -709,7 +720,7 @@ def main() :
                                                 'thickness': 0.8,
                                                 'value': pourc}}))
                         
-                    fig_jauge.update_layout(paper_bgcolor='black',
+                    fig_jauge.update_layout(paper_bgcolor='#0f172a',
                                             height=400, width=350,
                                             font={'color': 'white', 'family': 'Arial'},
                                             margin=dict(l=0, r=0, b=0, t=0, pad=0))
@@ -718,7 +729,7 @@ def main() :
     if show_client_feature2:
         if selected_featured2 in list_QUAL:
             titre_feature2 = f"""
-                    <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                    <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                     <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">{selected_featured2}</h2>
                     </div>
                     """
@@ -734,7 +745,7 @@ def main() :
         else:
             with col2:
                 titre_feature2 = f"""
-                    <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                    <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                     <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">{selected_featured2}</h2>
                     </div>
                     """
@@ -794,7 +805,7 @@ def main() :
                                                 'thickness': 0.8,
                                                 'value': pourc}}))
                         
-                    fig_jauge.update_layout(paper_bgcolor='black',
+                    fig_jauge.update_layout(paper_bgcolor='#0f172a',
                                             height=400, width=350,
                                             font={'color': 'white', 'family': 'Arial'},
                                             margin=dict(l=0, r=0, b=0, t=0, pad=0))
@@ -804,7 +815,7 @@ def main() :
         # Analyse bivarie
         if show_client_feature1 and show_client_feature2:
             titre_feature2 = f"""
-                    <div style="background-color: tomato; padding: 5px; border: 1px solid #E74C3C; border-radius: 5px; width: 100%;">
+                    <div style="background-color: #1e3a5f; padding: 5px; border: 1px solid #2c5282; border-radius: 5px; width: 100%;">
                     <h2 style="color: white; text-align: center; font-weight: bold; font-size: 18px;">COMPARAISON</h2>
                     </div>
                     """
