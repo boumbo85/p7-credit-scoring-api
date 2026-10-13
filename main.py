@@ -116,6 +116,86 @@ _shap_explainer = shap.TreeExplainer(clf.named_steps['lgbmclassifier'])
 # À ce seuil : ~71 % des clients acceptés / ~29 % refusés, recall défaut ~0.45.
 DECISION_THRESHOLD = 0.81
 
+# Libellés lisibles pour les variables les plus parlantes (lecture métier).
+# Les noms non mappés sont affichés tels quels, nettoyés.
+FEATURE_LABELS = {
+    'RATE_INDEBTEDNESS': "taux d'endettement",
+    'AMT_INCOME_TOTAL': 'revenu total',
+    'AMT_CREDIT': 'montant du crédit',
+    'AMT_ANNUITY': 'annuité',
+    'AMT_GOODS_PRICE': 'montant du bien',
+    'LTV_ratio': 'ratio prêt/valeur (LTV)',
+    'APPORT': "apport",
+    'DAYS_BIRTH': 'âge',
+    'AGE': 'âge',
+    'DAYS_EMPLOYED': "ancienneté d'emploi",
+    'YEARS_EMPLOYED': "ancienneté d'emploi",
+    'CNT_CHILDREN': "nombre d'enfants",
+    'CREDIT_ACTIVE': 'crédit en cours',
+    'EXT_SOURCE_1': 'score externe 1',
+    'EXT_SOURCE_2': 'score externe 2',
+    'EXT_SOURCE_3': 'score externe 3',
+    'ANCIENNETE_BANK': 'ancienneté bancaire',
+}
+
+# Préfixes one-hot courants -> libellé lisible (gère les colonnes "COL_Valeur").
+FEATURE_PREFIX_LABELS = {
+    'CODE_GENDER': 'genre',
+    'FLAG_OWN_CAR': 'possède une voiture',
+    'FLAG_OWN_REALTY': 'propriétaire',
+    'NAME_FAMILY_STATUS': 'statut familial',
+    'NAME_INCOME_TYPE': 'type de revenu',
+    'NAME_EDUCATION_TYPE': "niveau d'études",
+    'NAME_HOUSING_TYPE': 'type de logement',
+    'OCCUPATION_TYPE': 'profession',
+    'NAME_CONTRACT_TYPE': 'type de contrat',
+    'ORGANIZATION_TYPE': "secteur d'activité",
+}
+
+
+def _nice_label(raw):
+    """Nom de variable technique -> libellé lisible pour un conseiller."""
+    if raw in FEATURE_LABELS:
+        return FEATURE_LABELS[raw]
+    # colonnes one-hot "PREFIX_Valeur" -> "libellé du préfixe"
+    for prefix, label in FEATURE_PREFIX_LABELS.items():
+        if raw.startswith(prefix):
+            return label
+    # fallback : nettoyer le nom
+    return raw.replace('_', ' ').lower()
+
+
+def business_reading(shap_default, names, decision, top_n=3):
+    """Construit une phrase 'lecture métier' à partir des valeurs SHAP (classe défaut).
+
+    Une valeur SHAP positive pousse vers le DÉFAUT, négative vers l'acceptation.
+    On liste les variables qui ont le plus poussé la décision retenue.
+    """
+    pairs = sorted(zip(names, shap_default), key=lambda p: abs(p[1]), reverse=True)
+    if decision == 1:  # refusé : variables qui poussent vers le défaut (SHAP > 0)
+        candidates = [(n, v) for n, v in pairs if v > 0]
+        verdict = "Crédit refusé"
+        liaison = "principaux facteurs de risque"
+    else:              # accepté : variables qui rassurent (SHAP < 0)
+        candidates = [(n, v) for n, v in pairs if v < 0]
+        verdict = "Crédit accordé"
+        liaison = "principaux facteurs rassurants"
+
+    # garder les top_n libellés DISTINCTS (évite "genre" répété via one-hot)
+    morceaux, seen = [], set()
+    for n, v in candidates:
+        lbl = _nice_label(n)
+        if lbl in seen:
+            continue
+        seen.add(lbl)
+        morceaux.append(f"{lbl} ({v:+.2f})")
+        if len(morceaux) >= top_n:
+            break
+
+    if not morceaux:
+        return f"{verdict}."
+    return f"{verdict} — {liaison} : " + ", ".join(morceaux) + "."
+
 
 def compute_prediction(id_client):
     """Calcule la probabilité, la décision (seuil métier) et les valeurs SHAP localement.
@@ -138,14 +218,20 @@ def compute_prediction(id_client):
 
     shap_values = _shap_explainer.shap_values(X_selected)
     base_value = _shap_explainer.expected_value
-    # TreeExplainer renvoie une liste [classe0, classe1] pour un classifieur binaire ;
-    # on garde la classe 0, comme le faisait le backend Flask d'origine.
+    # TreeExplainer renvoie une liste [classe0, classe1] pour un classifieur binaire.
+    # - classe 0 : conservée pour le waterfall (comportement d'origine).
+    # - classe 1 (défaut) : utilisée pour la lecture métier (SHAP>0 => pousse au défaut).
     if isinstance(shap_values, list):
         shap_vector = shap_values[0]
         base_scalar = base_value[0]
+        shap_default = np.asarray(shap_values[1]).ravel()
     else:
         shap_vector = shap_values
         base_scalar = base_value
+        shap_default = np.asarray(shap_values).ravel()
+
+    names = list(X_selected.columns)
+    reading = business_reading(shap_default, names, decision)
 
     return {
         'ID': id_client,
@@ -154,6 +240,7 @@ def compute_prediction(id_client):
         'Feature_Importance': shap_vector.tolist(),
         'Expected_value': base_scalar,
         'Threshold': DECISION_THRESHOLD,
+        'BusinessReading': reading,
     }
 
 def main() :
@@ -280,6 +367,16 @@ def main() :
         st.write("")
         st.write("")
         st.markdown(decision_circle, unsafe_allow_html=True)
+
+        # Lecture métier : traduit la décision du modèle en langage conseiller,
+        # à partir des 3 variables SHAP les plus déterminantes.
+        reading = result.get('BusinessReading')
+        if reading:
+            st.markdown(
+                f"<p style='text-align:center; font-size:14px; color:#eee; "
+                f"background:#1e1e1e; padding:10px; border-radius:8px; margin-top:12px;'>"
+                f"{reading}</p>",
+                unsafe_allow_html=True)
 
     # Display Customer solvability prediction
     with col2:
