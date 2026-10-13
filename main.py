@@ -80,7 +80,13 @@ with zipfile.ZipFile(zip_file_dashboard_path, 'r') as zip_ref:
 # Lire le fichier CSV extrait avec pandas
 df = pd.read_csv('df_trainXY_sample.csv')
 df_dashboard = pd.read_csv('dossier_temporaire/df_dashboardY.csv')
-df_dashboard = df_dashboard[26:50]
+
+# Aligner l'affichage sur les clients réellement scorables :
+# on ne garde dans le dashboard que les SK_ID_CURR présents dans df (ceux du menu),
+# pour que chaque client sélectionné ait bien ses infos descriptives.
+# L'échantillon suit la vraie distribution (~8 % de défauts) : les graphes de
+# distribution sont donc représentatifs de la population réelle.
+df_dashboard = df_dashboard[df_dashboard['SK_ID_CURR'].isin(df['SK_ID_CURR'])].reset_index(drop=True)
 
 # subdivise dataframe
 selection_ID = df['SK_ID_CURR']
