@@ -97,12 +97,26 @@ df_predict = df.copy()
 # (évite de le reconstruire à chaque interaction utilisateur)
 _shap_explainer = shap.TreeExplainer(clf.named_steps['lgbmclassifier'])
 
+# ──────────────────────────────────────────────────────────────────────
+# SEUIL DE DÉCISION MÉTIER
+# ──────────────────────────────────────────────────────────────────────
+# Le modèle est entraîné sur données rééquilibrées (SMOTE) : ses probabilités
+# sont décalées vers le haut. Le seuil 0.5 par défaut de clf.predict() refuserait
+# donc quasiment tout le monde.
+# On fixe à la place un seuil calé sur le COÛT MÉTIER : un faux négatif (accorder
+# un crédit à un futur défaillant) coûte bien plus cher qu'un faux positif. Avec un
+# ratio de coût FN:FP de 10:1 (cohérent avec le Fβ β=10 utilisé à l'entraînement),
+# le seuil qui minimise le coût total sur un échantillon représentatif vaut ~0.81.
+# À ce seuil : ~71 % des clients acceptés / ~29 % refusés, recall défaut ~0.45.
+DECISION_THRESHOLD = 0.81
+
 
 def compute_prediction(id_client):
-    """Calcule la prédiction, les probabilités et les valeurs SHAP localement.
+    """Calcule la probabilité, la décision (seuil métier) et les valeurs SHAP localement.
 
-    Remplace l'ancien appel à l'API Flask (Heroku) : même structure de retour,
-    mais tout est calculé en local -> une seule app Streamlit à déployer.
+    Remplace l'ancien appel à l'API Flask (Heroku) : tout est calculé en local.
+    La décision n'utilise PAS clf.predict() (seuil 0.5) mais le seuil métier
+    DECISION_THRESHOLD appliqué à la probabilité de défaut.
     """
     id_client = int(id_client)
     selected_row = df_predict.loc[df_predict['SK_ID_CURR'] == id_client]
@@ -111,8 +125,10 @@ def compute_prediction(id_client):
 
     X_selected = selected_row.iloc[:, :-2]
 
-    y_pred = clf.predict(X_selected)
     y_pred_proba = clf.predict_proba(X_selected)
+    proba_default = float(y_pred_proba[0][1])
+    # Décision = la probabilité de défaut dépasse-t-elle le seuil métier ?
+    decision = int(proba_default >= DECISION_THRESHOLD)
 
     shap_values = _shap_explainer.shap_values(X_selected)
     base_value = _shap_explainer.expected_value
@@ -127,10 +143,11 @@ def compute_prediction(id_client):
 
     return {
         'ID': id_client,
-        'Prediction': y_pred.tolist(),
+        'Prediction': [decision],
         'Predict_proba': y_pred_proba.tolist(),
         'Feature_Importance': shap_vector.tolist(),
         'Expected_value': base_scalar,
+        'Threshold': DECISION_THRESHOLD,
     }
 
 def main() :
@@ -271,12 +288,15 @@ def main() :
         predict_proba = result['Predict_proba']
         resultat = predict_proba[0][1]
         score_client = float(round(resultat*100,2))
-        
+        seuil_pct = round(result['Threshold'] * 100, 1)  # seuil de décision en %
+
         ## Vizualisation customer scoring  with yield Gauge Graph
+        # La barre blanche = probabilité de défaut du client.
+        # Le repère rouge épais = seuil de décision métier : au-dessus => crédit refusé.
         fig_jauge = go.Figure(go.Indicator(
-            mode ='gauge+number+delta',
-            # Customer scoring in % df_dashboard['SCORE_CLIENT_%']
+            mode ='gauge+number',
             value = score_client,
+            number = {'suffix': ' %'},
             domain = {'x': [0, 1], 'y': [0, 1]},
             title = {'text': 'Probabilité de défaut', 'font': {'size': 24}},
             gauge = {'axis': {'range': [0, 100],
@@ -286,20 +306,23 @@ def main() :
                 'bgcolor': 'white',
                 'borderwidth': 2,
                 'bordercolor': 'gray',
-                'steps': [{'range': [0, 25], 'color': 'Green'},
-                            {'range': [25, 49.49], 'color': 'LimeGreen'},
-                            {'range': [49.5, 50.5], 'color': 'red'},
-                            {'range': [50.51, 75], 'color': 'Orange'},
-                            {'range': [75, 100], 'color': 'Crimson'}],
-                'threshold': {'line': {'color': 'white', 'width': 10},
-                                'thickness': 0.8,
-                                'value': score_client}}))
+                # vert sous le seuil (accepté), rouge au-dessus (refusé)
+                'steps': [{'range': [0, seuil_pct], 'color': 'rgba(16,185,129,0.55)'},
+                            {'range': [seuil_pct, 100], 'color': 'rgba(220,38,38,0.55)'}],
+                'threshold': {'line': {'color': 'red', 'width': 6},
+                                'thickness': 0.9,
+                                'value': seuil_pct}}))
 
         fig_jauge.update_layout(paper_bgcolor='black',
                                 height=400, width=350,
                                 font={'color': 'white', 'family': 'Arial'},
                                 margin=dict(l=0, r=0, b=0, t=0, pad=0))
         st.plotly_chart(fig_jauge)
+        st.markdown(
+            f"<p style='text-align:center; font-size:13px; color:#bbb;'>"
+            f"Seuil de décision : <b>{seuil_pct} %</b> "
+            f"— optimisé sur le coût métier (Fβ, β=10), pas sur 0,5.</p>",
+            unsafe_allow_html=True)
     
     ## Globale
     col1, col2 = st.columns(2)
